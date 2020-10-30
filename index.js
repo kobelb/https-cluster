@@ -1,26 +1,31 @@
 const cluster = require('cluster');
-const http = require('http');
-// const numCPUs = require('os').cpus().length;
+const https = require('https');
+const fs = require('fs');
 const numCPUs = 2;
 
 if (cluster.isMaster) {
-  console.log(`Master ${process.pid} is running`);
+    console.log(`Master ${process.pid} is running`);
 
-  // Fork workers.
-  for (let i = 0; i < numCPUs; i++) {
-    cluster.fork();
-  }
+    // Fork workers.
+    for (let i = 0; i < numCPUs; i++) {
+        cluster.fork();
+    }
 
-  cluster.on('exit', (worker, code, signal) => {
-    console.log(`worker ${worker.process.pid} died`);
-  });
+    cluster.on('exit', (worker, code, signal) => {
+        console.log(`worker ${worker.process.pid} died`);
+    });
 } else {
-  // Workers can share any TCP connection
-  // In this case it is an HTTP server
-  http.createServer((req, res) => {
-    res.writeHead(200);
-    res.end('hello world\n');
-  }).listen(8080);
+    const serverOptions = {
+        cert: fs.readFileSync('certs/kibana/kibana.crt'),
+        key: fs.readFileSync('certs/kibana/kibana.key')
+    };
 
-  console.log(`Worker ${process.pid} started`);
+    const requestListener = function (req, res) {
+        res.writeHead(200);
+        res.end('hello world\n');
+    };
+
+    https.createServer(serverOptions, requestListener).listen(8080);
+
+    console.log(`Worker ${process.pid} started`);
 }
